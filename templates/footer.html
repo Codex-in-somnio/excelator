@@ -1,0 +1,58 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+    integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
+    crossorigin="anonymous"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+    integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+    crossorigin="anonymous"></script>
+
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+    integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+    crossorigin="anonymous"></script>
+
+<script src="https://cdn.jsdelivr.net/gh/hiqdev/jquery-resizable-columns/dist/jquery.resizableColumns.min.js"
+    crossorigin="anonymous"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/store2/2.11.2/store2.min.js"
+    integrity="sha512-iorNy5NwRCU2Aw+rgZSZEJJEFpOY9DQkzoI8cLZM5O3tB4XzmS3cBX2599NbIGzFsbb4vzMR0d0b/dBYIkOZJg=="
+    crossorigin="anonymous"></script>
+
+<script>
+    $(function () {
+        $("table").resizableColumns({
+            store: window.store
+        });
+        loadTempSave();
+        updateTempSaveCount();
+    });
+
+    function moveFocus(reverse) {
+        focused = $(document.activeElement);
+        tas = focused.parent().parent().find('textarea');
+        for (i = 0; i < tas.length; ++i) {
+            if (tas[i] === document.activeElement) {
+                index = i + (reverse ? -1 : 1);
+                if (index >= 0 && index < tas.length) {
+                    $(tas[index]).focus();
+                    break;
+                }
+            }
+        }
+    }
+
+    $(document).keydown(function (e) {
+        if (e.ctrlKey) {
+            if (e.keyCode == 219) { // left
+                e.preventDefault();
+                moveFocus(true);
+            } else if (e.keyCode == 221) { // right
+                e.preventDefault();
+                moveFocus(false);
+            }
+        }
+    });
+</script>
+
+</body>
+
+</html>

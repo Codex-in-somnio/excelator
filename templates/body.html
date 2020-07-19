@@ -1,0 +1,243 @@
+{% with title = cur_file if cur_file else '选择文件' %}
+    {% include 'header.html' %}
+{% endwith %}
+
+
+<div class="{{ 'modal fade' if cur_file }}" id="fileSelect" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">选择文件</h5>
+                {% if cur_file %}
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="modal-body">
+                <div class="list-group">
+                    {% if not files %}
+                    数据目录中没有任何xlsx文件
+                    {% endif %}
+                    {% for filename in files %}
+                    <a href="?filename={{ filename | urlencode }}"
+                        class="list-group-item list-group-item-action {{ 'active' if cur_file == filename }}">
+                        {{ filename }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% if cur_file %}
+<div class="navbar sticky-top navbar-dark bg-dark">
+    <div>
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#fileSelect">
+            选择文件
+        </button>
+
+        {{ cur_file }}
+
+
+        <div class="btn-group" role="group" style="margin-left: 1em">
+            {% if not wss %}
+            没有任何工作表
+            {% endif %}
+            {% for ws in wss %}
+            <a class="btn btn-secondary {{ 'active' if ws == cur_ws }}"
+                href="?filename={{ cur_file | urlencode }}&worksheet={{ ws | urlencode }}">
+                {{ ws }}
+            </a>
+            {% endfor %}
+        </div>
+
+        
+    </div>
+
+    <button type="button" class="btn btn-primary"  onclick="tempSaveCommit()" style="margin-left: 1em">
+        提交缓存 (<span id="tempSaveCount"></span>)
+    </button>
+
+</div>
+{% endif %}
+
+{% if table %}
+<table class="table table-dark table-bordered" data-resizable-columns-id="transTable" style="table-layout: fixed; margin-top: 0.5em;">
+    <thead>
+        <tr>
+            {% for cell in table[0] %}
+            <th data-resizable-column-id="{{ cell.c.column_letter }}">
+                {{ cell.c.column_letter }}
+            </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in table %}
+        <tr>
+            {% for cell in row %}
+            {% if not cell.skip %}
+            <td {% if cell.merged %} colspan="{{ cell.merged[0] }}" rowspan="{{ cell.merged[1] }}" {% endif %}
+                style="{{ cell.style }}">
+                {% if cell.edit %}
+                <textarea id="{{ cell.coord }}" class="form-control" id="{{ cell.coord }}" rows="2" tabindex={{ cell.tab_index }}
+                    onfocusout="$(this).next().css('display', 'none')"
+                    onfocus="$(this).next().css('display', 'block'); updateCount(this)"
+                    oninput="updateCount(this)"
+                    onchange="postContent(this)">{{ cell.text if cell.text }}</textarea>
+                <label style="display:none"></label>
+                {% else %}
+                {{ cell.text if cell.text }}
+                {% endif %}
+            </td>
+            {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+
+{% if cur_file and cur_ws %}
+<script>
+    function updateCount(elem) {
+        $(elem).next().text($(elem).val().length + '字');
+    }
+
+    function postContent(elem) {
+        $(elem).prop('disabled', true);
+        cells = Object()
+        cells[$(elem).attr('id')] = $(elem).val()
+        $.ajax({
+            url: 'write',
+            type: 'POST',
+            contentType : 'application/json',
+            data: JSON.stringify({
+                filename: {{ cur_file | tojson }},
+                worksheet: {{ cur_ws | tojson }},
+                cells: cells
+            }),
+        })
+        .done(function() {
+            for (coord in cells) {
+                tempSaveRemove({{ cur_file | tojson }}, {{ cur_ws | tojson }}, coord);
+            }
+        })
+        .fail(function(r) {
+            alert('提交失败；状态码：' + r.status + '。');
+            for (coord in cells) {
+                tempSave({{ cur_file | tojson }}, {{ cur_ws | tojson }}, coord, cells[coord]);
+            }
+        })
+        .always(function() {
+            $(elem).prop('disabled', false);
+        });
+    }
+
+    function tempSave(filename, sheet, coord, text) {
+        try {
+            if (localStorage.getItem('tempSave') === null) {
+                localStorage.setItem('tempSave', JSON.stringify({}));
+            }
+
+            tempSaveList = JSON.parse(localStorage.getItem('tempSave'));
+
+            if (!(filename in tempSaveList))
+                tempSaveList[filename] = {}
+
+            if (!(sheet in tempSaveList[filename]))
+                tempSaveList[filename][sheet] = {}
+
+            tempSaveList[filename][sheet][coord] = text;
+
+            localStorage.setItem('tempSave', JSON.stringify(tempSaveList));
+
+        } catch (e) {
+            alert('缓存失败1');
+            console.error(e);
+        }
+        updateTempSaveCount();
+    }
+
+    function tempSaveRemove(filename, sheet, coord) {
+        tempSaveList = JSON.parse(localStorage.getItem('tempSave'));
+        if (!tempSaveList || !tempSaveList[filename] ||
+            !tempSaveList[filename][sheet] || !tempSaveList[filename][sheet][coord])
+            return;
+        delete tempSaveList[filename][sheet][coord];
+        localStorage.setItem('tempSave', JSON.stringify(tempSaveList));
+        updateTempSaveCount();
+    }
+
+    function tempSaveCommit() {
+        tempSaveList = JSON.parse(localStorage.getItem('tempSave'));
+        for (file in tempSaveList) {
+            for (ws in tempSaveList[file]) {
+                $.ajax({
+                    url: 'write',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    async: false,
+                    data: JSON.stringify({
+                        filename: file,
+                        worksheet: ws,
+                        cells: tempSaveList[file][ws]
+                    }),
+                })
+                .done(function() {
+                    delete tempSaveList[file][ws];
+                })
+                .fail(function(r) {
+                    alert(file + ':' + ws + ' 提交失败；状态码：' + r.status + '。');
+                })
+            }
+        }
+        localStorage.setItem('tempSave', JSON.stringify(tempSaveList));
+        updateTempSaveCount();
+    }
+
+    function updateTempSaveCount() {
+        count = 0
+        if (localStorage.getItem('tempSave') !== null) {
+            tempSaveList = JSON.parse(localStorage.getItem('tempSave'));
+            for (file in tempSaveList) {
+                for (ws in tempSaveList[file]) 
+                    count += Object.keys(tempSaveList[file][ws]).length;
+            }
+        }
+        
+        $('#tempSaveCount').text(count);
+        $('#tempSaveCount').parent('button').attr('disabled', count == 0);
+    }
+
+    function loadTempSave() {
+        tempSaveList = JSON.parse(localStorage.getItem('tempSave'));
+        if (!tempSaveList)
+            return;
+        for (file in tempSaveList) {
+            for (ws in tempSaveList[file]) {
+                for (cell in tempSaveList[file][ws]) {
+                    $('#' + cell).val(tempSaveList[file][ws][cell]);
+                }
+            }
+        }
+    }
+
+
+</script>
+{% endif %}
+
+{% if msg %}
+<div class="container">
+    <div class="alert alert-primary" role="alert" style="margin-top: 0.5em;">
+        {{ msg }}
+    </div>
+</div>
+{% endif %}
+
+
+{% include 'footer.html' %}
