@@ -1,3 +1,4 @@
 /data/*.xlsx
 /config.py
 /__pycache__
+/data/backup/backup.db
