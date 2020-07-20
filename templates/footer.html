@@ -19,11 +19,25 @@
 
 <script>
     $(function () {
-        $("table").resizableColumns({
+        $('table').resizableColumns({
             store: window.store
         });
         loadTempSave();
         updateTempSaveCount();
+
+
+        $('table').on('column:resize:stop', resizeTextareas);
+        $(window).on('resize', resizeTextareas);
+
+        //ro = new ResizeObserver(resizeTextareas).observe(document.body);
+        resizeTextareas();
+
+        $(window).on("beforeunload", function () {
+            if ($('textarea:disabled').length || $('textarea:focus').length) {
+                return '正在提交更改';
+            }
+
+        });
     });
 
     function moveFocus(reverse) {

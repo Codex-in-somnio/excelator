@@ -42,6 +42,7 @@ class Cell:
     edit = False
     style = ""
     tab_index = 0
+    hidden = False
 
     def __init__(self, cell, merged_cell_ranges):
         for merged_cell_range in merged_cell_ranges:
@@ -92,6 +93,9 @@ class Cell:
                 c = m.group(1)
                 self.text = len(cell.parent[c].value)
 
+        if cell.column_letter in config.HIDE_COLS:
+            self.hidden = True
+
 
 @app.template_filter('urlencode')
 def urlencode_filter(s):
@@ -133,7 +137,7 @@ def index():
             for cell in row:
                 _cell = Cell(cell, ws.merged_cells.ranges)
                 _row.append(_cell)
-                if cell.value:
+                if cell.value or _cell.edit:
                     col_edge = max(col_edge, cell.column)
                     row_empty = False
             table.append(_row)
