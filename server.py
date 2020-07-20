@@ -45,8 +45,8 @@ class Cell:
     hidden = False
 
     def __init__(self, cell, merged_cell_ranges):
+        self.c = cell
         for merged_cell_range in merged_cell_ranges:
-            self.c = cell
             if cell.coordinate in merged_cell_range:
                 if merged_cell_range.start_cell == cell:
                     self.merged = (
