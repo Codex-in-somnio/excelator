@@ -40,29 +40,46 @@
         });
     });
 
-    function moveFocus(reverse) {
+    function moveFocusH(reverse) {
         focused = $(document.activeElement);
         tas = focused.parent().parent().find('textarea');
         for (i = 0; i < tas.length; ++i) {
             if (tas[i] === document.activeElement) {
                 index = i + (reverse ? -1 : 1);
-                if (index >= 0 && index < tas.length) {
-                    $(tas[index]).focus();
-                    break;
-                }
+                if (index == -1)
+                    index = tas.length - 1
+                if (index == tas.length)
+                    index = 0
+                $(tas[index]).focus();
+                break;
             }
         }
     }
 
+    function moveFocusV() {
+        focused = $(document.activeElement);
+        tabIndex = parseInt(focused.attr('tabindex')) + 1;
+        next = $('textarea[tabindex="' + tabIndex + '"]')
+        next.focus();
+    }
+
     $(document).keydown(function (e) {
-        if (e.ctrlKey) {
-            if (e.keyCode == 219) { // left
+        if (e.key == 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            moveFocusV();
+        } else if (e.ctrlKey) {
+            if (e.key == '[') { // left
                 e.preventDefault();
-                moveFocus(true);
-            } else if (e.keyCode == 221) { // right
+                moveFocusH(true);
+            } else if (e.key == ']') { // right
                 e.preventDefault();
-                moveFocus(false);
+                moveFocusH(false);
             }
+        }
+        if (e.key == 'Enter' || e.key == 'Tab') {
+            setTimeout(function() {
+                document.activeElement.scrollIntoView({block: 'center'});
+            }, 0);
         }
     });
 </script>
