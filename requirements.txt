@@ -2,3 +2,4 @@ Flask
 Flask-SQLAlchemy
 openpyxl
 coloredlogs
+waitress

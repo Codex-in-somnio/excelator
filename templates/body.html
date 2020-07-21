@@ -88,7 +88,7 @@
                 {% if cell.edit %}
                 <textarea id="{{ cell.coord }}" class="form-control" id="{{ cell.coord }}" rows="1"
                     tabindex={{ cell.tab_index }} onfocusout="$(this).next().css('display', 'none')"
-                    onfocus="$(this).next().css('display', 'block'); updateCount(this)" oninput="updateCount(this)"
+                    onfocus="$(this).next().css('display', 'block'); updateCount(this)" oninput="updateCount(this); $(this).data('edited', 1);"
                     onchange="postContent(this)">{{ cell.text if cell.text }}</textarea>
                 <label style="display:none"></label>
                 {% else %}
@@ -107,7 +107,7 @@
 {% if cur_file and cur_ws %}
 <script>
     function updateCount(elem) {
-        elem = $(elem)
+        elem = $(elem);
         elem.css('height', Math.max(elem[0].scrollHeight + 2, elem.outerHeight()));
         elem.next().text(elem.val().length + '字');
     }
@@ -127,9 +127,10 @@
             }),
         })
         .done(function () {
-        for (coord in cells) {
-            tempSaveRemove({{ cur_file | tojson }}, {{ cur_ws | tojson }}, coord);
+            for (coord in cells) {
+                tempSaveRemove({{ cur_file | tojson }}, {{ cur_ws | tojson }}, coord);
             }
+            $(elem).data('edited', false);
         })
         .fail(function (r) {
         alert('提交失败；状态码：' + r.status + '。');
@@ -138,8 +139,13 @@
             }
         })
         .always(function () {
-        $(elem).prop('disabled', false);
-    });
+            $(elem).prop('disabled', false);
+            if (!$('textarea:focus').length) {
+                setTimeout(function () {
+                    (elem).focus();
+                }, 0);
+            }
+        });
     }
 
     function tempSave(filename, sheet, coord, text) {
@@ -178,7 +184,10 @@
     }
 
     function tempSaveCommit() {
-        tempSaveList = JSON.parse(localStorage.getItem('tempSave'));
+        ts = localStorage.getItem('tempSave');
+        if (!ts) return;
+
+        tempSaveList = JSON.parse(ts);
         for (file in tempSaveList) {
             for (ws in tempSaveList[file]) {
                 $.ajax({
@@ -192,12 +201,12 @@
                         cells: tempSaveList[file][ws]
                     }),
                 })
-                    .done(function () {
-                        delete tempSaveList[file][ws];
-                    })
-                    .fail(function (r) {
-                        alert(file + ':' + ws + ' 提交失败；状态码：' + r.status + '。');
-                    })
+                .done(function () {
+                    delete tempSaveList[file][ws];
+                })
+                .fail(function (r) {
+                    alert(file + ':' + ws + ' 提交失败；状态码：' + r.status + '。');
+                })
             }
         }
         localStorage.setItem('tempSave', JSON.stringify(tempSaveList));

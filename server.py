@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 from urllib.parse import quote_plus, unquote_plus
 from flask_sqlalchemy import SQLAlchemy
+from waitress import serve
 
 import os
 import openpyxl
@@ -183,4 +184,5 @@ if __name__ == '__main__':
     if not os.path.isfile('data/backup/backup.db'):
         logging.warning('备份数据库文件不存在，即将创建')
         db.create_all()
-    app.run(debug=True)
+    serve(app, host='127.0.0.1', port=5000)
+    # app.run(debug=True)

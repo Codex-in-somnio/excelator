@@ -33,8 +33,8 @@
         resizeTextareas();
 
         $(window).on("beforeunload", function () {
-            if ($('textarea:disabled').length || $('textarea:focus').length) {
-                return '正在提交更改';
+            if ($('textarea:disabled').length || $('textarea:focus').length && $('textarea:focus').data('edited')) {
+                return true;
             }
 
         });
@@ -67,13 +67,19 @@
         if (e.key == 'Enter' && !e.shiftKey) {
             e.preventDefault();
             moveFocusV();
-        } else if (e.ctrlKey) {
+        } else if (e.ctrlKey || e.metaKey) {
             if (e.key == '[') { // left
                 e.preventDefault();
                 moveFocusH(true);
             } else if (e.key == ']') { // right
                 e.preventDefault();
                 moveFocusH(false);
+            } else if (e.key == 's') {
+                e.preventDefault();
+                tempSaveCommit();
+                if ($(document.activeElement).data('edited')) {
+                    $(document.activeElement).blur();
+                }
             }
         }
         if (e.key == 'Enter' || e.key == 'Tab') {
