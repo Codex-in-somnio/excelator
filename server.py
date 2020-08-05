@@ -105,13 +105,14 @@ class Cell:
 
         if self.edit and cell.column_letter == config.CHAR_LIMIT_APPLY_COL:
             try:
+                cell_val = cell_value_to_text(
+                    cell.parent.cell(
+                        cell.row,
+                        ord(config.CHAR_LIMIT_VAL_COL) - ord('A') + 1
+                    ).value
+                )
                 self.char_limit = int(
-                    cell_value_to_text(
-                        cell.parent.cell(
-                            cell.row,
-                            ord(config.CHAR_LIMIT_VAL_COL) - ord('A') + 1
-                        ).value
-                    )
+                    int(re.sub(r'[^\d]+', '', cell_val))
                 )
             except ValueError:
                 logging.debug(f'failed to parse int for: {self.coord}')
