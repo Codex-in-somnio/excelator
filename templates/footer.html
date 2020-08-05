@@ -38,6 +38,10 @@
             }
 
         });
+
+        $('textarea').each(function() {
+            updateCount($(this));
+        });
     });
 
     function moveFocusH(reverse) {
@@ -76,6 +80,7 @@
                 moveFocusH(false);
             } else if (e.key == 's') {
                 e.preventDefault();
+                isCtrlSSave = true;
                 // tempSaveCommit();
                 if ($(document.activeElement).data('edited')) {
                     $(document.activeElement).blur();

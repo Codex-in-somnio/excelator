@@ -89,7 +89,9 @@
                 <textarea id="{{ cell.coord }}" class="form-control" id="{{ cell.coord }}" rows="1"
                     tabindex={{ cell.tab_index }} onfocusout="$(this).next().css('display', 'none')"
                     onfocus="$(this).next().css('display', 'block'); updateCount(this)" oninput="updateCount(this); $(this).data('edited', 1);"
-                    onchange="postContent(this)">{{ cell.text if cell.text }}</textarea>
+                    onchange="postContent(this)"
+                    {% if cell.char_limit %} data-char-limit="{{ cell.char_limit }}" {% endif %}
+                >{{ cell.text if cell.text }}</textarea>
                 <label style="display:none"></label>
                 {% else %}
                 {{ cell.text if cell.text }}
@@ -109,9 +111,18 @@
     function updateCount(elem) {
         elem = $(elem);
         elem.css('height', Math.max(elem[0].scrollHeight + 2, elem.outerHeight()));
-        elem.next().text(elem.val().length + '字');
+        charLimit = elem.data('charLimit');
+        if (charLimit) {
+            if (elem.val().length > charLimit) {
+                elem.addClass('text-over-limit')
+            } else {
+                elem.removeClass('text-over-limit')
+            }
+        }
+        elem.next().text(elem.val().length + (charLimit ? ' / ' + charLimit : '') + ' 字');
     }
 
+    var isCtrlSSave = false
     function postContent(elem) {
         $(elem).prop('disabled', true);
         cells = Object()
@@ -133,14 +144,15 @@
             $(elem).data('edited', false);
         })
         .fail(function (r) {
-        alert('提交失败；状态码：' + r.status + '。');
-        for (coord in cells) {
-            tempSave({{ cur_file | tojson }}, {{ cur_ws | tojson }}, coord, cells[coord]);
+            alert('提交失败；状态码：' + r.status + '。');
+            for (coord in cells) {
+                tempSave({{ cur_file | tojson }}, {{ cur_ws | tojson }}, coord, cells[coord]);
             }
         })
         .always(function () {
             $(elem).prop('disabled', false);
-            if (!$('textarea:focus').length) {
+            if (!$('textarea:focus').length && isCtrlSSave) {
+                isCtrlSSave = false;
                 setTimeout(function () {
                     (elem).focus();
                 }, 0);

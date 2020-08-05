@@ -44,6 +44,7 @@ class Cell:
     style = ""
     tab_index = 0
     hidden = False
+    char_limit = None
 
     def __init__(self, cell, merged_cell_ranges):
         self.c = cell
@@ -56,7 +57,18 @@ class Cell:
                 else:
                     self.skip = True
                     return
-        self.text = cell.value
+
+        def cell_value_to_text(val):
+            if isinstance(val, str) and val[0] == '=':
+                m = re.search(r'=LEN\(([A-Za-z0-9]+)\)', val)
+                if m:
+                    c = m.group(1)
+                    return str(len(cell.parent[c].value))
+            else:
+                return str(val) if val else ''
+
+        self.text = cell_value_to_text(cell.value)
+
         self.coord = cell.coordinate
 
         styles = {
@@ -88,14 +100,21 @@ class Cell:
             self.tab_index = 100 + \
                 cell.row + (cell.column - 1) * cell.parent.max_row
 
-        if isinstance(cell.value, str) and cell.value[0] == '=':
-            m = re.search(r'=LEN\(([A-Za-z0-9]+)\)', cell.value)
-            if m:
-                c = m.group(1)
-                self.text = len(cell.parent[c].value)
-
         if cell.column_letter in config.HIDE_COLS:
             self.hidden = True
+
+        if self.edit and cell.column_letter == config.CHAR_LIMIT_APPLY_COL:
+            try:
+                self.char_limit = int(
+                    cell_value_to_text(
+                        cell.parent.cell(
+                            cell.row,
+                            ord(config.CHAR_LIMIT_VAL_COL) - ord('A') + 1
+                        ).value
+                    )
+                )
+            except ValueError:
+                logging.debug(f'failed to parse int for: {self.coord}')
 
 
 @app.template_filter('urlencode')
