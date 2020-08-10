@@ -48,15 +48,21 @@ class Cell:
 
     def __init__(self, cell, merged_cell_ranges):
         self.c = cell
-        for merged_cell_range in merged_cell_ranges:
-            if cell.coordinate in merged_cell_range:
-                if merged_cell_range.start_cell == cell:
-                    self.merged = (
-                        len(merged_cell_range.top),
-                        len(merged_cell_range.left))
-                else:
-                    self.skip = True
-                    return
+
+        def check_cell_merged(coord):
+            for merged_cell_range in merged_cell_ranges:
+                if coord in merged_cell_range:
+                    return merged_cell_range
+            return False
+
+        merged_cell_range = check_cell_merged(cell.coordinate)
+        if merged_cell_range:
+            if merged_cell_range.start_cell == cell:
+                self.merged = (len(merged_cell_range.top),
+                               len(merged_cell_range.left))
+            else:
+                self.skip = True
+                return
 
         def cell_value_to_text(val):
             if isinstance(val, str) and val[0] == '=':
@@ -105,17 +111,37 @@ class Cell:
 
         if self.edit and cell.column_letter == config.CHAR_LIMIT_APPLY_COL:
             try:
-                cell_val = cell_value_to_text(
-                    cell.parent.cell(
-                        cell.row,
-                        ord(config.CHAR_LIMIT_VAL_COL) - ord('A') + 1
-                    ).value
+                char_lim_cell = cell.parent.cell(
+                    cell.row,
+                    ord(config.CHAR_LIMIT_VAL_COL) - ord('A') + 1
                 )
-                self.char_limit = int(
-                    int(re.sub(r'[^\d]+', '', cell_val))
-                )
+                merged_cell_range = check_cell_merged(char_lim_cell.coordinate)
+                if merged_cell_range:
+                    char_lim_cell = merged_cell_range.start_cell
+
+                char_lim_val = cell_value_to_text(char_lim_cell.value)
+
+                if config.CHAR_LIMIT_REGEX:
+                    result = re.search(config.CHAR_LIMIT_REGEX, char_lim_val)
+                    if result and len(result.groups()) == 1:
+                        self.char_limit = int(result.group(1))
+                    elif not result:
+                        logging.debug(
+                            'failed to extract char limit from '
+                            f'{char_lim_cell.coordinate} for {self.coord}')
+                    else:
+                        logging.debug(
+                            'regex match result should only contain one capture'
+                            ' group.')
+                else:
+                    self.char_limit = int(
+                        int(re.sub(r'[^\d]+', '', char_lim_val))
+                    )
+
             except ValueError:
-                logging.debug(f'failed to parse int for: {self.coord}')
+                logging.debug(
+                    f'failed to parse int from {char_lim_cell.coordinate} '
+                    f'for {self.coord}')
 
 
 @app.template_filter('urlencode')
