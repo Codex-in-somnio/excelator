@@ -69,7 +69,13 @@ class Cell:
                 m = re.search(r'=LEN\(([A-Za-z0-9]+)\)', val)
                 if m:
                     c = m.group(1)
-                    return str(len(cell.parent[c].value))
+                    len_cell_val = cell.parent[c].value
+                    if isinstance(len_cell_val, str):
+                        return str(len(cell.parent[c].value))
+                    else:
+                        return '#VAL_ERR'
+                else:
+                    '#FUNC_NOT_IMPLEMENTED'
             else:
                 return str(val) if val else ''
 
