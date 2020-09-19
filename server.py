@@ -183,6 +183,9 @@ def index():
     col_edge = 0
     row_edge = 0
 
+    at_least_col = sorted(config.EDIT_COLS)[-1]
+    ws[at_least_col + '1']
+
     if ws.max_row > 1:
         for row in ws:
             _row = []
@@ -236,5 +239,5 @@ if __name__ == '__main__':
     if not os.path.isfile('data/backup/backup.db'):
         logging.warning('备份数据库文件不存在，即将创建')
         db.create_all()
-    serve(app, host='127.0.0.1', port=5000)
+    serve(app, host='127.0.0.1', port=5001)
     # app.run(debug=True)
