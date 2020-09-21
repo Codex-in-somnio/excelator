@@ -307,8 +307,8 @@ if __name__ == '__main__':
         logging.warning('备份数据库文件不存在，即将创建')
         db.create_all()
     if not os.path.isfile('data/completed_list.json'):
-        logging.warning('备份数据库文件不存在，即将创建')
-        with open(COMPLETE_LIST_JSON_PATH) as f:
+        logging.warning('完成列表文件不存在，即将创建')
+        with open(COMPLETE_LIST_JSON_PATH, 'w') as f:
             json.dump([], f)
 
     # serve(app, host='127.0.0.1', port=5001)
