@@ -15,15 +15,34 @@
                 {% endif %}
             </div>
             <div class="modal-body">
-                <div class="list-group">
+                <form action="." method="get">
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text"><span class="fa fa-search"></span></span>
+                        </div>
+                        <input type="text" class="form-control" name="search" placeholder="全文搜索" 
+                               value="{{ search_for if search_for }}">
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="submit">搜索</button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div class="list-group" id="files-list">
                     {% if not files %}
-                    数据目录中没有任何xlsx文件
+                        数据目录中没有任何xlsx文件
                     {% endif %}
                     {% for filename in files %}
-                    <a href="?filename={{ filename | urlencode }}"
-                        class="list-group-item list-group-item-action {{ 'active' if cur_file == filename }}">
-                        {{ filename }}
-                    </a>
+                        <a href="?filename={{ filename | urlencode }}"
+                            class="list-group-item list-group-item-action
+                                {{ 'active' if cur_file == filename }}
+                                {{ 'search-hit' if filename in search_result_list }}">
+                            {{ filename }}
+                            
+                            <input type="checkbox" class="form-check-input" style="transform:scale(2); right:0; margin-right: 16px;"
+                                   onchange='mod_completed({{ filename | tojson }}, this.checked)'
+                                   {{ 'checked' if filename in complete_list }}>
+                        </a>
                     {% endfor %}
                 </div>
             </div>
@@ -41,6 +60,12 @@
 
         {{ cur_file }}
 
+        <span>
+            <input id="completed" type="checkbox" class="form-check-input" style="position:initial; margin-left:10px; transform:scale(1.25); vertical-align: text-top;"
+                    onchange='mod_completed({{ cur_file | tojson }}, this.checked)'
+                    {{ 'checked' if cur_file in complete_list }} >
+            <label for="completed">已完成</label>
+        </span>
 
         <div class="btn-group" role="group" style="margin-left: 1em">
             {% if not wss %}
@@ -56,7 +81,7 @@
 
 
     </div>
-
+    
     <button type="button" class="btn btn-primary" onclick="tempSaveCommit()" style="margin-left: 1em">
         提交缓存 (<span id="tempSaveCount"></span>)
     </button>
@@ -285,6 +310,35 @@
 
 </script>
 {% endif %}
+
+<script>
+function mod_completed(filename, target_status) {
+    $('input:checkbox').prop('disabled', true);
+    $.ajax({
+        url: 'completed_list',
+        type: target_status ? 'PUT' : 'DELETE',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            filename: filename
+        }),
+    })
+    .done(function () {
+        // ensure display consistency
+        {% if cur_file %}
+        if (filename == {{ cur_file | tojson }}) {
+            $('#completed').prop('checked', target_status);
+            $('#files-list > a.active > input').prop('checked', target_status);
+        }
+        {% endif %}
+    })
+    .fail(function (r) {
+        alert('提交失败；状态码：' + r.status + '。');
+    })
+    .always(function () {
+        $('input:checkbox').prop('disabled', false);
+    });
+}
+</script>
 
 {% if msg %}
 <div class="container">

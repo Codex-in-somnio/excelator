@@ -15,6 +15,7 @@ import config
 
 
 DATA_PATH = 'data'
+COMPLETE_LIST_JSON_PATH = 'data/completed_list.json'
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data/backup/backup.db'
@@ -22,6 +23,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 lock = threading.Lock()
+cl_json_lock = threading.Lock()
 
 coloredlogs.install(level=logging.DEBUG)
 
@@ -157,17 +159,33 @@ def urlencode_filter(s):
 
 @app.route('/')
 def index():
+    search_for = request.args.get('search')
+
+    if search_for:
+        logging.debug(f'搜索：{search_for}')
+
     files = []
+    search_result_list = []
+
     for f in os.listdir(DATA_PATH):
         if os.path.isfile(os.path.join(DATA_PATH, f)) and \
-                os.path.splitext(f)[1].lower() == '.xlsx':
+                f.lower().endswith('.xlsx') and \
+                not f.startswith('~$'):
+            if search_for and search_xlsx_for(f, search_for):
+                logging.debug(f'{f}包含搜索关键字')
+                search_result_list.append(f)
             files.append(f)
     files.sort()
     cur_file = request.args.get('filename')
     cur_ws = request.args.get('worksheet')
 
+    with open(COMPLETE_LIST_JSON_PATH) as f:
+        complete_list = json.load(f)
+
     if not cur_file:
-        return render_template('body.html', files=files)
+        return render_template('body.html', files=files, search_for=search_for,
+                               complete_list=complete_list,
+                               search_result_list=search_result_list)
 
     wb = openpyxl.open(os.path.join(DATA_PATH, cur_file))
 
@@ -210,7 +228,10 @@ def index():
 
     rendered = render_template('body.html',
                                files=files, cur_file=cur_file, cur_ws=cur_ws,
-                               table=table, wss=wss, msg=msg)
+                               table=table, wss=wss, msg=msg,
+                               search_for=search_for,
+                               complete_list=complete_list,
+                               search_result_list=search_result_list)
     wb.close()
     return rendered
 
@@ -219,7 +240,7 @@ def index():
 def write():
     data = request.get_json()
     with lock:
-        logging.debug(f'收到：{data}')
+        logging.debug(f'收到xlsx写入数据：{data}')
         wb = openpyxl.open(os.path.join(DATA_PATH, data['filename']))
         ws = wb[data['worksheet']]
         for cell, val in data['cells'].items():
@@ -235,9 +256,60 @@ def write():
     return 'ok'
 
 
+@app.route('/completed_list', methods=['PUT', 'DELETE'])
+def completed_list():
+    data = request.get_json()
+    method = request.method
+    filename = data['filename']
+    with cl_json_lock:
+        logging.debug(f'收到完成列表请求：{data}, {method}')
+        with open(COMPLETE_LIST_JSON_PATH) as f:
+            cur_list = json.load(f)
+        if method == 'DELETE':
+            while filename in cur_list:
+                cur_list.remove(filename)
+        else:
+            if filename not in cur_list:
+                cur_list.append(filename)
+        with open(COMPLETE_LIST_JSON_PATH, 'w') as f:
+            json.dump(cur_list, f, indent=2, ensure_ascii=False)
+
+    return 'ok'
+
+
+def search_xlsx_for(filename, search_for):
+    '''
+    returns: True if value is found, False otherwise
+    '''
+    search_for = search_for.lower()
+    wb = openpyxl.open(os.path.join(DATA_PATH, filename), read_only=True)
+    for ws in wb:
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell, openpyxl.cell.read_only.EmptyCell) or \
+                        cell.column_letter in config.HIDE_COLS:
+                    continue
+                cell_val = cell.value
+                if cell_val is not None:
+                    cell_val = str(cell_val)
+                    if cell_val.startswith('='):
+                        continue
+                    if cell_val.lower().find(search_for) != -1:
+                        logging.debug(f'hit {cell_val}')
+                        wb.close()
+                        return True
+    wb.close()
+    return False
+
+
 if __name__ == '__main__':
     if not os.path.isfile('data/backup/backup.db'):
         logging.warning('备份数据库文件不存在，即将创建')
         db.create_all()
-    serve(app, host='127.0.0.1', port=5001)
-    # app.run(debug=True)
+    if not os.path.isfile('data/completed_list.json'):
+        logging.warning('备份数据库文件不存在，即将创建')
+        with open(COMPLETE_LIST_JSON_PATH) as f:
+            json.dump([], f)
+
+    # serve(app, host='127.0.0.1', port=5001)
+    app.run(debug=True)

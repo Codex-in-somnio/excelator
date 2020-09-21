@@ -17,6 +17,7 @@
     integrity="sha512-iorNy5NwRCU2Aw+rgZSZEJJEFpOY9DQkzoI8cLZM5O3tB4XzmS3cBX2599NbIGzFsbb4vzMR0d0b/dBYIkOZJg=="
     crossorigin="anonymous"></script>
 
+{% if cur_file and cur_ws %}
 <script>
     $(function () {
         $('table').resizableColumns({
@@ -94,6 +95,7 @@
         }
     });
 </script>
+{% endif %}
 
 </body>
 
