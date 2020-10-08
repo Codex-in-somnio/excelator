@@ -54,7 +54,7 @@ for filename in os.listdir(server.DATA_PATH):
 
     if args.col:
         for location in set(search_result[filename].keys()):
-            if location[0][0] != args.col.upper():
+            if location[1][0] != args.col.upper():
                 del search_result[filename][location]
 
 for filename in search_result:
