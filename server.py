@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from flask import Flask, render_template, request
 from urllib.parse import quote_plus, unquote_plus
 from flask_sqlalchemy import SQLAlchemy
@@ -277,29 +279,43 @@ def completed_list():
     return 'ok'
 
 
-def search_xlsx_for(filename, search_for):
+def search_xlsx_for(filename, search_for, editable_only=False):
     '''
-    returns: True if value is found, False otherwise
+    returns: {(sheet, cell_coord): (val, [pos, ...]), ...}
     '''
     search_for = search_for.lower()
+    ret = {}
     wb = openpyxl.open(os.path.join(DATA_PATH, filename), read_only=True)
     for ws in wb:
-        for row in ws.iter_rows():
+        for row_number, row in enumerate(ws.iter_rows()):
+            if row_number < config.HEADER_ROWS:
+                continue
             for cell in row:
                 if isinstance(cell, openpyxl.cell.read_only.EmptyCell) or \
                         cell.column_letter in config.HIDE_COLS:
+                    continue
+                if editable_only and cell.column_letter not in config.EDIT_COLS:
                     continue
                 cell_val = cell.value
                 if cell_val is not None:
                     cell_val = str(cell_val)
                     if cell_val.startswith('='):
                         continue
-                    if cell_val.lower().find(search_for) != -1:
-                        logging.debug(f'hit {cell_val}')
-                        wb.close()
-                        return True
+                    start_pos = 0
+                    while True:
+                        found_pos = cell_val.lower().find(search_for, start_pos)
+                        if found_pos == -1:
+                            break
+                        
+                        logging.debug(f'hit: {cell_val} at pos {start_pos}')
+                        
+                        ret.setdefault(
+                            (ws.title, cell.coordinate), (cell_val, []))
+                        ret[(ws.title, cell.coordinate)][1].append(found_pos)
+
+                        start_pos = found_pos + len(search_for)
     wb.close()
-    return False
+    return ret
 
 
 if __name__ == '__main__':
