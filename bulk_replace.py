@@ -9,7 +9,7 @@ import os
 import openpyxl
 import re
 
-SAVE_DIR_DEFAULT = 'replaced'
+SAVE_DIR_DEFAULT = 'data'
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument('find', help='查找文本')
